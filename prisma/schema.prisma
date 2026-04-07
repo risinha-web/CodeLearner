@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String   @id @default(cuid())
+  auth0Id          String   @unique
+  email            String   @unique
+  name             String?
+  avatarUrl        String?
+  leetcodeUsername String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  moduleProgress    ModuleProgress[]
+  questionAttempts  QuestionAttempt[]
+  interviewSessions InterviewSession[]
+}
+
+model Module {
+  id                   String @id @default(cuid())
+  slug                 String @unique
+  name                 String
+  description          String
+  order                Int    @unique
+  iconKey              String
+  introContent         String @db.Text
+  preliminaryQuestions Json   @default("[]")
+
+  questions Question[]
+  progress  ModuleProgress[]
+}
+
+model Question {
+  id            String     @id @default(cuid())
+  number        Int
+  moduleId      String
+  module        Module     @relation(fields: [moduleId], references: [id])
+  name          String
+  topics        String[]
+  leetcodeUrl   String
+  difficulty    Difficulty
+  orderInModule Int
+  hintContent        String @db.Text
+  interviewQuestions Json
+
+  attempts          QuestionAttempt[]
+  interviewSessions InterviewSession[]
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model ModuleProgress {
+  id                String           @id @default(cuid())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId          String
+  module            Module           @relation(fields: [moduleId], references: [id])
+  status            ModuleStatus     @default(LOCKED)
+  playerDifficulty  PlayerDifficulty @default(EASY)
+  easyScore         Float?
+  mediumScore       Float?
+  hardScore         Float?
+  currentPhase      GamePhase        @default(INTRO)
+  currentQuestionId String?
+  completedAt       DateTime?
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([userId, moduleId])
+}
+
+enum ModuleStatus {
+  LOCKED
+  ACTIVE
+  COMPLETED
+}
+
+enum PlayerDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum GamePhase {
+  INTRO
+  PRELIMINARY
+  CODING
+  INTERVIEW
+  SCORE_REVIEW
+  COMPLETED
+}
+
+model QuestionAttempt {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question @relation(fields: [questionId], references: [id])
+  hintsUsed       Int      @default(0)
+  screenshotUrl   String?
+  codingCompleted Boolean  @default(false)
+  codingScore     Float?
+  interviewScore  Float?
+  totalScore      Float?
+  attemptedAt     DateTime @default(now())
+  completedAt     DateTime?
+
+  @@unique([userId, questionId])
+}
+
+model InterviewSession {
+  id                 String          @id @default(cuid())
+  userId             String
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId         String
+  question           Question        @relation(fields: [questionId], references: [id])
+  difficultyModifier Int             @default(0)
+  messages           Json            @default("[]")
+  questionsAsked     Int             @default(0)
+  totalQuestions     Int             @default(5)
+  score              Float?
+  feedback           String?         @db.Text
+  status             InterviewStatus @default(ACTIVE)
+  startedAt          DateTime        @default(now())
+  completedAt        DateTime?
+}
+
+enum InterviewStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
